@@ -294,9 +294,7 @@ function create_product_variation( $data, $variations ) {
             }
         }
     }
-
-    if ( ! $data['variable'] ) {
-        $sku = $variations[0]['sku'];
+    elseif ( ! $data['variable'] ) {
         $regular_price = $variations[0]['regular_price'];
 
         $product = wc_get_product($product_id);
