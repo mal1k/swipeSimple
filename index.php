@@ -2,7 +2,7 @@
 /*
 Plugin Name: WooCommerce SwipeSimple automation
 Description: Parses products from swipeSimple to WooCommerce
-Version: 1.0.0
+Version: 1.1.3
 Author: Alex-K
 */
 

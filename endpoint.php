@@ -125,91 +125,96 @@ function create_product_variation( $data, $variations ) {
 	 // Creating the product (post data) # if not found
      if ( $new_item ) {
          $product_id = wp_insert_post( $post_data );
+     } else {
+        $post = get_post($product_id);
+        $post->post_status = ($data['status']) ? 'publish' : 'draft';
+        wp_update_post($post);
      }
 
-    // Useless part
-        // //  Get an instance of the WC_Product_Variable object and save it
-        //  $product = new WC_Product_Variable( $product_id );
-        //  $product->save();
-        //  ## ---------------------- Other optional data  ---------------------- ##
-        //  // IMAGES GALLERY
-        //  if( ! empty( $data['gallery_ids'] ) && count( $data['gallery_ids'] ) > 0 )
-        // 	 $product->set_gallery_image_ids( $data['gallery_ids'] );
-        //  // SKU
-        //  if( ! empty( $data['sku'] ) )
-        // 	 $product->set_sku( $data['sku'] );
-        //  // STOCK (stock will be managed in variations)
-        //  $product->set_stock_quantity( $data['stock'] ); // Set a minimal stock quantity
-        //  $product->set_manage_stock(true);
-        //  $product->set_stock_status('');
-        //  // Tax class
-        //  if( empty( $data['tax_class'] ) )
-        // 	 $product->set_tax_class( $data['tax_class'] );
-        //  // WEIGHT
-        //  if( ! empty($data['weight']) )
-        // 	 $product->set_weight(''); // weight (reseting)
-        //  else
-        // 	 $product->set_weight($data['weight']);
-        //  $product->validate_props(); // Check validation
-        //  ## ---------------------- VARIATION ATTRIBUTES ---------------------- ##
-        //  $product_attributes = array();
-        //  foreach( $data['attributes'] as $key => $terms ){
-        // 	 $attr_name = ucfirst($key);
-        // 	 $attr_slug = sanitize_title($key);
-        // 	 $taxonomy = wc_attribute_taxonomy_name(wp_unslash($key));
-        // 	 // NEW Attributes: Register and save them
+    // Install term attributes
+    if ($data['variable']) {
+        //  Get an instance of the WC_Product_Variable object and save it
+        $product = new WC_Product_Variable( $product_id );
+        $product->save();
+        ## ---------------------- Other optional data  ---------------------- ##
+        // IMAGES GALLERY
+        if( ! empty( $data['gallery_ids'] ) && count( $data['gallery_ids'] ) > 0 )
+            $product->set_gallery_image_ids( $data['gallery_ids'] );
+        // SKU
+        if( ! empty( $data['sku'] ) )
+            $product->set_sku( $data['sku'] );
+        // STOCK (stock will be managed in variations)
+        $product->set_stock_quantity( $data['stock'] ); // Set a minimal stock quantity
+        $product->set_manage_stock(true);
+        $product->set_stock_status('');
+        // Tax class
+        if( empty( $data['tax_class'] ) )
+            $product->set_tax_class( $data['tax_class'] );
+        // WEIGHT
+        if( ! empty($data['weight']) )
+            $product->set_weight(''); // weight (reseting)
+        else
+            $product->set_weight($data['weight']);
+        $product->validate_props(); // Check validation
+        ## ---------------------- VARIATION ATTRIBUTES ---------------------- ##
+        $product_attributes = array();
+        foreach( $data['attributes'] as $key => $terms ){
+            $attr_name = ucfirst($key);
+            $attr_slug = sanitize_title($key);
+            $taxonomy = wc_attribute_taxonomy_name(wp_unslash($key));
+            // NEW Attributes: Register and save them
+        
+            if (taxonomy_exists($taxonomy))
+            {
+                $attribute_id = wc_attribute_taxonomy_id_by_name($attr_slug);   
+            } else{
+                $attribute_id = add_custom_attribute($attr_name);
+            }
+        
+            $product_attributes[$taxonomy] = array (
+                'name'         => $taxonomy,
+                'value' 		=> '',
+                'position'     => '',
+                'is_visible'   => 1,
+                'is_variation' => 1,
+                'is_taxonomy'  => 1,
             
-        // 	 if (taxonomy_exists($taxonomy))
-        // 	 {
-        // 		 $attribute_id = wc_attribute_taxonomy_id_by_name($attr_slug);   
-        // 	 } else{
-        // 		 $attribute_id = add_custom_attribute($attr_name);
-        // 	 }
-            
-        // 	 $product_attributes[$taxonomy] = array (
-        // 		 'name'         => $taxonomy,
-        // 		 'value' 		=> '',
-        // 		 'position'     => '',
-        // 		 'is_visible'   => 1,
-        //          'is_variation' => 1,
-        // 		 'is_taxonomy'  => 1,
-                
-        // 	 );
-        // 	 if($attribute_id){
-        // 		 // Iterating through the variations attributes
-        // 		 foreach ($terms as $term_name )
-        // 		 {
-        // 			 $taxonomy = 'pa_'.$attr_slug; // The attribute taxonomy
-            
-        // 			 if( ! taxonomy_exists( $taxonomy ) ) {
-        // 				 register_taxonomy(
-        // 					 $taxonomy,
-        // 				 'product_variation',
-        // 					 array(
-        // 						 'hierarchical' => false,
-        // 						 'label' => $attr_name,
-        // 						 'query_var' => true,
-        // 						 'rewrite' => array( 'slug' => $attr_slug), // The base slug
-        // 					 ),
-        // 				 );
-        // 			 }
+            );
+            if($attribute_id){
+                // Iterating through the variations attributes
+                foreach ($terms as $term_name )
+                {
+                    $taxonomy = 'pa_'.$attr_slug; // The attribute taxonomy
+        
+                    if( ! taxonomy_exists( $taxonomy ) ) {
+                        register_taxonomy(
+                            $taxonomy,
+                        'product_variation',
+                            array(
+                                'hierarchical' => false,
+                                'label' => $attr_name,
+                                'query_var' => true,
+                                'rewrite' => array( 'slug' => $attr_slug), // The base slug
+                            ),
+                        );
+                    }
 
-        // 			 // Check if the Term name exist and if not we create it.
-        // 			 if( ! term_exists( $term_name, $taxonomy ) ) {
-        // 				 wp_insert_term( $term_name, $taxonomy ); // Create the term
-        // 			 }
-        // 			 // Get the post Terms names from the parent variable product.
-        // 			 $post_term_names =  wp_get_post_terms( $product_id, $taxonomy, array('fields' => 'names') );
-        // 			 // Check if the post term exist and if not we set it in the parent variable product.
-        // 			 if( ! in_array( $term_name, $post_term_names ) )
-        // 				 wp_set_post_terms( $product_id, $term_name, $taxonomy, true );
-        // 			 // Set the attribute data in the product variation
-        // 			 //update_post_meta($variation_id, 'attribute_'.$taxonomy, $term_slug );
-        // 		 }
-        // 	 }
-        //  }
-        //  update_post_meta( $product_id, '_product_attributes', $product_attributes ); 
-    // Useless part
+                    // Check if the Term name exist and if not we create it.
+                    if( ! term_exists( $term_name, $taxonomy ) ) {
+                        wp_insert_term( $term_name, $taxonomy ); // Create the term
+                    }
+                    // Get the post Terms names from the parent variable product.
+                    $post_term_names =  wp_get_post_terms( $product_id, $taxonomy, array('fields' => 'names') );
+                    // Check if the post term exist and if not we set it in the parent variable product.
+                    if( ! in_array( $term_name, $post_term_names ) )
+                        wp_set_post_terms( $product_id, $term_name, $taxonomy, true );
+                    // Set the attribute data in the product variation
+                    //update_post_meta($variation_id, 'attribute_'.$taxonomy, $term_slug );
+                }
+            }
+        }
+        update_post_meta( $product_id, '_product_attributes', $product_attributes ); 
+    }
 
     // CREATING VARIABLES
     $attributes = array(
@@ -295,12 +300,22 @@ function create_product_variation( $data, $variations ) {
         }
     }
     elseif ( ! $data['variable'] ) {
-        $regular_price = $variations[0]['regular_price'];
-
         $product = wc_get_product($product_id);
-        $product->set_regular_price($regular_price);
+        if ($product->is_type('variable')) {
+            $child_products = $product->get_children();
+            if (!empty($child_products)) {
+                $child_id = reset($child_products);
+                $product = wc_get_product($child_id);
+            }
+        }
         $product->save();
-        return;
+
+        $regular_price = $variations[0]['regular_price'];
+        $product = wc_get_product($product_id);
+            $product->set_stock_status('instock');
+            $product->set_price($regular_price);
+            $product->set_regular_price($regular_price);
+        $product->save();
     }
 
 }
